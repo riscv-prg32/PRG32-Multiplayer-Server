@@ -51,11 +51,14 @@ jobs:
             -e DEVICE_ID_SECRET=01234567890123456789012345678901 \
             -e ADMIN_TOKEN=abcdefghijklmnopqrstuvwxyz012345 \
             -p 127.0.0.1:8081:8081 prg32-multiplayer-server:test
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:8081/healthz; then break; fi
+          health=starting
+          for attempt in $(seq 1 45); do
+            health=$(docker inspect --format '{{.State.Health.Status}}' prg32-smoke)
+            if [ "$health" = healthy ]; then break; fi
             sleep 1
           done
-          test "$(docker inspect --format '{{.State.Health.Status}}' prg32-smoke)" = healthy
+          test "$health" = healthy
+          curl --fail --silent http://127.0.0.1:8081/healthz
           test "$(docker inspect --format '{{.Config.User}}' prg32-smoke)" = prg32
           test "$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.licenses"}}' prg32-smoke)" = MIT
           curl --fail --silent http://127.0.0.1:8081/admin | grep 'PRG32 Multiplayer Admin'
