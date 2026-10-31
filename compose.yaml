@@ -1,0 +1,13 @@
+services:
+  multiplayer:
+    build: .
+    ports: ['8081:8081']
+    environment:
+      DEVICE_ID_SECRET: ${DEVICE_ID_SECRET:?set DEVICE_ID_SECRET}
+    restart: unless-stopped
+    init: true
+    volumes:
+      - multiplayer-data:/data
+
+volumes:
+  multiplayer-data:

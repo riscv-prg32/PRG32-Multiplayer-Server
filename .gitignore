@@ -147,3 +147,7 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# PRG32 Multiplayer Server runtime data
+data/
+.DS_Store

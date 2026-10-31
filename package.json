@@ -1,0 +1,29 @@
+{
+  "name": "@prg32/multiplayer-server",
+  "version": "1.0.0",
+  "description": "WebSocket multiplayer relay for PRG32 consoles",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test",
+    "lint": "npm run lint:syntax && npm run lint:format",
+    "lint:syntax": "node --check src/*.js test/*.js examples/*.js",
+    "lint:format": "prettier --check .",
+    "format": "prettier --write .",
+    "check": "npm run lint && npm test",
+    "example:client": "node examples/client.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  },
+  "license": "GPL-3.0-only",
+  "private": true
+}
