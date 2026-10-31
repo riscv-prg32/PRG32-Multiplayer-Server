@@ -17,6 +17,13 @@
 | `TELEMETRY_MAX_EVENTS`     |          `100000` | Maximum retained event count                                  |
 | `PRIVACY_NOTICE_URL`       |        `/privacy` | Published privacy notice location                             |
 
+`TELEMETRY_MAX_EVENTS` is enforced in batches, because rewriting the event file
+pauses the relay. The retained count can run up to 10% over the limit before it
+is trimmed, and expired events are removed within about a minute of expiring.
+Every relayed snapshot is one event, so a room of four consoles at 20 snapshots
+per second writes about 80 events per second: the default limit then holds about
+20 minutes of traffic.
+
 Put TLS at a reverse proxy and expose `wss://` on public networks. Proxy
 WebSocket upgrades without buffering and use `/healthz` for liveness and
 `/readyz` for readiness. The service is intentionally stateless: use sticky

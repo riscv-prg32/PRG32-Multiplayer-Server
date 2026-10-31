@@ -7,17 +7,14 @@ draws the ball only while it is inside that device's 320-pixel segment. It
 therefore visibly bounces from one QEMU/console screen into the next while
 continuously exercising server traffic and peer expiry.
 
-It targets the firmware enhancement in
-[docs/firmware-enhancement.md](../../docs/firmware-enhancement.md): networked
-QEMU multiplayer plus `prg32_multiplayer_local_player_id()`. Current PRG32
-`main` cannot run this test because QEMU uses an offline multiplayer stub and
-the local authoritative ID is not exposed to cartridges.
-
-After that enhancement lands:
+It needs PRG32 firmware with ABI 1.7, which has networked QEMU multiplayer and
+`prg32_multiplayer_local_player_id()`. The firmware repository also has a fuller
+version with a takeover that keeps the ball in place, `cartridges/poingwall`, and
+an automated test, `tools/multiplayer_wall_test.py`.
 
 ```bash
 ./build.sh /path/to/PRG32 qemu
-# Start three QEMU instances with separate NVS images and UART ports.
+# Start three QEMU instances: python3 -m prg32 qemu run --instance N --no-audio
 # Upload dist/poing-multiplayer-qemu.prg32 to all three, then run each cartridge.
 ```
 

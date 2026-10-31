@@ -1,10 +1,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+// Rewriting the event file blocks the relay, so it must stay rare. The count may
+// run over the limit by this fraction, and expired events are looked for at most
+// this often, so that recording an event normally only appends one line.
+const COMPACTION_SLACK = 0.1;
+const AGE_CHECK_INTERVAL_MS = 60000;
+
 export class TelemetryStore {
   constructor(config) {
     this.config = config;
     this.events = [];
+    this.lastAgeCheck = Date.now();
     this.devices = new Map();
     this.listeners = new Set();
     fs.mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
@@ -16,8 +23,7 @@ export class TelemetryStore {
   record(type, details = {}) {
     const event = { timestamp: new Date().toISOString(), type, ...details };
     this.events.push(event);
-    const pruned = this.#prune();
-    if (pruned) this.#rewriteEvents();
+    if (this.#needsCompaction() && this.#prune()) this.#rewriteEvents();
     else
       fs.appendFileSync(this.eventFile, `${JSON.stringify(event)}\n`, { mode: 0o600 });
     for (const listener of this.listeners) listener(event);
@@ -77,7 +83,13 @@ export class TelemetryStore {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
+  #needsCompaction() {
+    const limit = this.config.telemetryMaxEvents;
+    if (this.events.length > limit + Math.ceil(limit * COMPACTION_SLACK)) return true;
+    return Date.now() - this.lastAgeCheck >= AGE_CHECK_INTERVAL_MS;
+  }
   #prune() {
+    this.lastAgeCheck = Date.now();
     const before = this.events.length;
     const cutoff = Date.now() - this.config.telemetryRetentionDays * 86400000;
     this.events = this.events

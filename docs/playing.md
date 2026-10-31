@@ -12,7 +12,6 @@
    `prg32_multiplayer_tick`, then render snapshots returned by
    `prg32_multiplayer_get_peer`.
 
-QEMU's current PRG32 firmware multiplayer implementation is an offline stub.
-Use `examples/client.js` to test this server until the QEMU transport sends the
-documented identity envelope. PRG32-QT and PRG-iOS should implement the same
-WebSocket contract and persisted IDs from [protocol.md](protocol.md).
+PRG32 firmware on QEMU joins real rooms too, over emulated Ethernet. PRG32-QT and
+PRG-iOS should implement the same WebSocket contract and persisted IDs from
+[protocol.md](protocol.md).
