@@ -6,3 +6,6 @@ coverage
 test
 docs
 examples
+data
+*.log
+.DS_Store

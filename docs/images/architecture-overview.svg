@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">PRG32 multiplayer architecture</title>
+  <desc id="desc">Four PRG32 client types connect through a TLS edge to the relay, identity, telemetry, and administration components.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0d1622"/><stop offset="1" stop-color="#16283b"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="5" stdDeviation="6" flood-opacity=".3"/></filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L10,3 L0,6 Z" fill="#66d9a6"/></marker>
+    <style>.box{fill:#1d2c3b;stroke:#4a647b;stroke-width:2;rx:14;filter:url(#shadow)}.core{fill:#17382f;stroke:#66d9a6}.label{font:600 20px system-ui,sans-serif;fill:#edf7ff;text-anchor:middle}.small{font:15px system-ui,sans-serif;fill:#a9bdce;text-anchor:middle}.line{stroke:#66d9a6;stroke-width:3;fill:none;marker-end:url(#arrow)}.group{fill:none;stroke:#385168;stroke-width:2;stroke-dasharray:8 7;rx:18}.heading{font:700 17px system-ui,sans-serif;fill:#66d9a6}</style>
+  </defs>
+  <rect width="1200" height="520" fill="url(#bg)" rx="18"/>
+  <text x="36" y="38" class="heading">CLIENT RUNTIMES</text><rect x="25" y="55" width="245" height="420" class="group"/>
+  <g><rect x="55" y="85" width="185" height="70" class="box"/><text x="147" y="115" class="label">ESP32-C6</text><text x="147" y="139" class="small">physical console</text></g>
+  <g><rect x="55" y="180" width="185" height="70" class="box"/><text x="147" y="210" class="label">QEMU</text><text x="147" y="234" class="small">firmware emulator</text></g>
+  <g><rect x="55" y="275" width="185" height="70" class="box"/><text x="147" y="305" class="label">PRG32-QT</text><text x="147" y="329" class="small">desktop runtime</text></g>
+  <g><rect x="55" y="370" width="185" height="70" class="box"/><text x="147" y="400" class="label">PRG32-iOS</text><text x="147" y="424" class="small">mobile runtime</text></g>
+  <path d="M270 265 H365" class="line"/><text x="317" y="245" class="small">wss:// JSON</text>
+  <g><rect x="375" y="205" width="180" height="120" class="box"/><text x="465" y="248" class="label">TLS Edge</text><text x="465" y="276" class="small">Caddy / ingress</text><text x="465" y="299" class="small">origin + certificates</text></g>
+  <path d="M555 265 H645" class="line"/>
+  <text x="655" y="38" class="heading">SERVER PROCESS</text><rect x="635" y="55" width="540" height="420" class="group"/>
+  <g><rect x="675" y="90" width="210" height="105" class="box core"/><text x="780" y="128" class="label">Room Relay</text><text x="780" y="154" class="small">validation · authority</text><text x="780" y="177" class="small">fan-out · limits</text></g>
+  <g><rect x="925" y="90" width="210" height="105" class="box"/><text x="1030" y="128" class="label">Identity</text><text x="1030" y="154" class="small">platform scope</text><text x="1030" y="177" class="small">HMAC pseudonyms</text></g>
+  <g><rect x="675" y="245" width="210" height="105" class="box"/><text x="780" y="283" class="label">Admin Plane</text><text x="780" y="309" class="small">dashboard · export</text><text x="780" y="332" class="small">block · erase</text></g>
+  <g><rect x="925" y="245" width="210" height="105" class="box"/><text x="1030" y="283" class="label">Telemetry</text><text x="1030" y="309" class="small">minimized history</text><text x="1030" y="332" class="small">bounded retention</text></g>
+  <g><rect x="800" y="390" width="210" height="58" class="box"/><text x="905" y="416" class="label">/data volume</text><text x="905" y="438" class="small">JSONL + device registry</text></g>
+  <path d="M885 142 H925" class="line"/><path d="M780 195 V245" class="line"/><path d="M885 297 H925" class="line"/><path d="M1030 350 L960 390" class="line"/>
+</svg>

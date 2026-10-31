@@ -23,11 +23,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate Compose models
+        env:
+          DEVICE_ID_SECRET: 01234567890123456789012345678901
+          ADMIN_TOKEN: abcdefghijklmnopqrstuvwxyz012345
+          DOMAIN: multiplayer.example.edu
+          ACME_EMAIL: operations@example.edu
+          ALLOWED_ORIGINS: https://multiplayer.example.edu
+        run: |
+          docker compose config --quiet
+          docker compose -f compose.production.yaml config --quiet
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: false
+          load: true
           tags: prg32-multiplayer-server:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Smoke-test hardened image
+        run: |
+          docker run -d --name prg32-smoke \
+            --read-only --cap-drop ALL --security-opt no-new-privileges=true \
+            --pids-limit 100 --tmpfs /data:rw,noexec,nosuid,size=64m \
+            -e DEVICE_ID_SECRET=01234567890123456789012345678901 \
+            -e ADMIN_TOKEN=abcdefghijklmnopqrstuvwxyz012345 \
+            -p 127.0.0.1:8081:8081 prg32-multiplayer-server:test
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8081/healthz; then break; fi
+            sleep 1
+          done
+          test "$(docker inspect --format '{{.State.Health.Status}}' prg32-smoke)" = healthy
+          test "$(docker inspect --format '{{.Config.User}}' prg32-smoke)" = prg32
+          test "$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.licenses"}}' prg32-smoke)" = MIT
+          curl --fail --silent http://127.0.0.1:8081/admin | grep 'PRG32 Multiplayer Admin'
+          curl --fail --silent http://127.0.0.1:8081/app.js | grep 'prg32-admin-token'
+      - name: Show container logs
+        if: failure()
+        run: docker logs prg32-smoke
+      - name: Remove smoke container
+        if: always()
+        run: docker rm -f prg32-smoke || true

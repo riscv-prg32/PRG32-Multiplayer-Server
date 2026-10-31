@@ -1,0 +1,61 @@
+services:
+  multiplayer:
+    build: .
+    image: prg32-multiplayer-server:${IMAGE_TAG:-latest}
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 8081
+      DEVICE_ID_SECRET: ${DEVICE_ID_SECRET:?set DEVICE_ID_SECRET}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN}
+      MAX_CONNECTIONS: ${MAX_CONNECTIONS:-1024}
+      MAX_ROOM_CLIENTS: ${MAX_ROOM_CLIENTS:-16}
+      MAX_MESSAGE_BYTES: ${MAX_MESSAGE_BYTES:-1024}
+      MAX_MESSAGES_PER_SECOND: ${MAX_MESSAGES_PER_SECOND:-40}
+      IDLE_TIMEOUT_MS: ${IDLE_TIMEOUT_MS:-15000}
+      TELEMETRY_RETENTION_DAYS: ${TELEMETRY_RETENTION_DAYS:-30}
+      TELEMETRY_MAX_EVENTS: ${TELEMETRY_MAX_EVENTS:-100000}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?set ALLOWED_ORIGINS to https://DOMAIN}
+      PRIVACY_NOTICE_URL: ${PRIVACY_NOTICE_URL:-/privacy}
+    expose: ['8081']
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 100
+    stop_grace_period: 15s
+    volumes:
+      - multiplayer-data:/data
+    healthcheck:
+      test: [CMD, wget, -q, -O-, 'http://127.0.0.1:8081/healthz']
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  proxy:
+    image: caddy:2-alpine
+    depends_on:
+      multiplayer:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ./deploy/docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  multiplayer-data:
+  caddy-data:
+  caddy-config:

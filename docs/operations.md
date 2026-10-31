@@ -9,6 +9,12 @@ Monitor `/readyz` connection and room counts. Do not expose it if topology
 counts are sensitive. Logs must never include message bodies, query strings, or
 raw client identifiers. Use infrastructure connection metrics for capacity.
 
+Container deployments must persist `/data`, keep the root filesystem read-only,
+run as the image's non-root user, and expose the application directly only on a
+trusted local network. Public deployments use the TLS proxy topology documented
+in [Docker and Docker Compose deployment](docker.md). Backups inherit the same
+personal-data classification and retention duties as the live volume.
+
 The protocol provides identity, not authentication: a client can claim another
 client's local ID. Internet tournaments should add signed short-lived join
 tokens at a trusted gateway before treating identity as an account or enforcing

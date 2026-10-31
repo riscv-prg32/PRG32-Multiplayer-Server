@@ -15,12 +15,17 @@ npm start
 Generate `DEVICE_ID_SECRET` with a cryptographically secure password manager
 or `openssl rand -base64 32`. Do not commit `.env`.
 
-## Container
+## Docker and Docker Compose
 
 ```bash
 export DEVICE_ID_SECRET="$(openssl rand -base64 32)"
+export ADMIN_TOKEN="$(openssl rand -base64 32)"
 docker compose up --build -d
 curl http://localhost:8081/healthz
 ```
 
-The image runs as an unprivileged user and stores no game state.
+The image runs as an unprivileged user with a read-only root filesystem. The
+named `/data` volume stores bounded telemetry and the pseudonymous device
+registry; live rooms and game snapshots remain in memory. Read the complete
+[Docker and Docker Compose guide](docker.md) before public deployment, backup,
+upgrade, or erasure.
