@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate Compose models
         env:
-          DEVICE_ID_SECRET: 01234567890123456789012345678901
+          DEVICE_ID_SECRET: '01234567890123456789012345678901'
           ADMIN_TOKEN: abcdefghijklmnopqrstuvwxyz012345
           DOMAIN: multiplayer.example.edu
           ACME_EMAIL: operations@example.edu
@@ -46,7 +46,8 @@ jobs:
         run: |
           docker run -d --name prg32-smoke \
             --read-only --cap-drop ALL --security-opt no-new-privileges=true \
-            --pids-limit 100 --tmpfs /data:rw,noexec,nosuid,size=64m \
+            --pids-limit 100 \
+            --tmpfs /data:rw,noexec,nosuid,size=64m,uid=100,gid=101,mode=0700 \
             -e DEVICE_ID_SECRET=01234567890123456789012345678901 \
             -e ADMIN_TOKEN=abcdefghijklmnopqrstuvwxyz012345 \
             -p 127.0.0.1:8081:8081 prg32-multiplayer-server:test
