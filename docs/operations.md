@@ -5,9 +5,13 @@ manager, and rotate it deliberately (rotation changes every public device ID).
 The relay validates every field, limits frames/rooms/connections/message rate,
 does not retain state, and times out silent clients.
 
-Monitor `/readyz` connection and room counts. Do not expose it if topology
-counts are sensitive. Logs must never include message bodies, query strings, or
-raw client identifiers. Use infrastructure connection metrics for capacity.
+The home page and unauthenticated `GET /api/stats` endpoint expose only current
+connection and room counts. Retained event totals, device aggregates, event
+details, exports, and administrative actions remain behind the admin token.
+Monitor `/readyz` for readiness and the same live counts. Do not expose the
+service publicly if topology counts are sensitive. Logs must never include
+message bodies, query strings, or raw client identifiers. Use infrastructure
+connection metrics for capacity.
 
 Container deployments must persist `/data`, keep the root filesystem read-only,
 run as the image's non-root user, and expose the application directly only on a

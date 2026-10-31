@@ -96,6 +96,10 @@ test('serves health and readiness', async (t) => {
     connections: 0,
     rooms: 0,
   });
+  const publicStats = await (await fetch(`http://127.0.0.1:${port}/api/stats`)).json();
+  assert.equal(publicStats.connections, 0);
+  assert.equal(publicStats.rooms, 0);
+  assert.match(publicStats.generated_at, /^\d{4}-\d{2}-\d{2}T/);
 });
 
 test('admin API authenticates, exports telemetry, and erases a device', async (t) => {
@@ -113,6 +117,8 @@ test('admin API authenticates, exports telemetry, and erases a device', async (t
   const { port } = app.server.address();
   const base = `http://127.0.0.1:${port}`;
   assert.equal((await fetch(`${base}/api/admin/stats`)).status, 401);
+  assert.equal((await fetch(`${base}/api/admin/events`)).status, 401);
+  assert.equal((await fetch(`${base}/api/admin/devices`)).status, 401);
 
   const socket = await open(`ws://127.0.0.1:${port}`);
   t.after(() => socket.close());

@@ -42,6 +42,9 @@ section {
   font-size: 28px;
   color: var(--accent);
 }
+.muted {
+  color: #aab7c4;
+}
 input,
 button {
   padding: 9px;

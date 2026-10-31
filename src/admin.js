@@ -66,6 +66,13 @@ export function createAdminHandler(config, relay, telemetry) {
       response.end(fs.readFileSync(path.join(publicDirectory, 'privacy.md')));
       return true;
     }
+    if (request.method === 'GET' && url.pathname === '/api/stats') {
+      json(response, 200, {
+        generated_at: new Date().toISOString(),
+        ...relay.stats(),
+      });
+      return true;
+    }
     if (!url.pathname.startsWith('/api/admin/')) return false;
     const token = request.headers.authorization?.replace(/^Bearer /, '');
     if (!equalToken(token, config.adminToken)) {

@@ -2,6 +2,22 @@ const login = document.querySelector('#login');
 const dashboard = document.querySelector('#dashboard');
 const tokenInput = document.querySelector('#token');
 let token = sessionStorage.getItem('prg32-admin-token') || '';
+const renderPublicStats = async () => {
+  const response = await fetch('/api/stats', { cache: 'no-store' });
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  const stats = await response.json();
+  document.querySelector('#public-cards').innerHTML = [
+    ['Connections', stats.connections],
+    ['Rooms', stats.rooms],
+  ]
+    .map(
+      ([key, value]) =>
+        `<div class="card"><span>${key}</span><strong>${value}</strong></div>`,
+    )
+    .join('');
+  document.querySelector('#public-stats-status').textContent =
+    `Updated ${new Date(stats.generated_at).toLocaleTimeString()}`;
+};
 const api = async (path, options = {}) => {
   const response = await fetch(path, {
     ...options,
@@ -110,6 +126,11 @@ if (token) {
     })
     .catch(() => sessionStorage.removeItem('prg32-admin-token'));
 }
+renderPublicStats().catch(() => {
+  document.querySelector('#public-stats-status').textContent =
+    'Live statistics are temporarily unavailable.';
+});
 setInterval(() => {
+  renderPublicStats().catch(() => {});
   if (!dashboard.hidden) render().catch(() => {});
 }, 2000);
