@@ -19,7 +19,7 @@
     "example:client": "node examples/client.js"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "ws": "^8.22.1"
   },
   "devDependencies": {
     "prettier": "^3.3.3"
