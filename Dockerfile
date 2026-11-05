@@ -1,9 +1,9 @@
-FROM node:22-alpine AS dependencies
+FROM node:24-alpine AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-FROM node:22-alpine
+FROM node:24-alpine
 LABEL org.opencontainers.image.title="PRG32 Multiplayer Server" \
       org.opencontainers.image.description="WebSocket multiplayer relay for PRG32 consoles" \
       org.opencontainers.image.source="https://github.com/riscv-prg32/PRG32-Multiplayer-Server" \
