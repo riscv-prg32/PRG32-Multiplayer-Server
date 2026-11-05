@@ -13,7 +13,8 @@ export function parseMessage(data, maximumBytes) {
   if (!message || typeof message !== 'object' || Array.isArray(message))
     throw new Error('invalid_message');
   if (message.type === 'join') {
-    if (!SIGNATURE.test(message.signature || '')) throw new Error('invalid_signature');
+    if (typeof message.signature !== 'string' || !SIGNATURE.test(message.signature))
+      throw new Error('invalid_signature');
     if (message.player_id !== undefined && !integer(message.player_id, 1, 0xffffffff))
       throw new Error('invalid_player_id');
     if (message.flags !== undefined && !integer(message.flags, 0, 0xffffffff))

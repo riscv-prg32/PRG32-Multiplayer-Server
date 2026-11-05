@@ -20,6 +20,13 @@ const json = (response, status, body) => {
   });
   response.end(JSON.stringify(body));
 };
+// Absent or invalid limits use the default; valid ones are clamped to 1…5000 so
+// a negative or fractional value can never turn slice(-limit) into a wrong window.
+const eventLimit = (params) => {
+  const value = Math.trunc(Number(params.get('limit')));
+  if (!Number.isFinite(value) || value < 1) return 500;
+  return Math.min(value, 5000);
+};
 const csv = (events) => {
   const columns = ['timestamp', 'type', 'device_id', 'platform', 'room', 'bytes'];
   const quote = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
@@ -30,8 +37,7 @@ const csv = (events) => {
 };
 
 export function createAdminHandler(config, relay, telemetry) {
-  return (request, response) => {
-    const url = new URL(request.url, 'http://localhost');
+  return (request, response, url) => {
     if (
       request.method === 'GET' &&
       (url.pathname === '/' || url.pathname === '/admin')
@@ -54,7 +60,10 @@ export function createAdminHandler(config, relay, telemetry) {
       return true;
     }
     if (request.method === 'GET' && url.pathname === '/style.css') {
-      response.writeHead(200, { 'content-type': 'text/css; charset=utf-8' });
+      response.writeHead(200, {
+        'content-type': 'text/css; charset=utf-8',
+        'cache-control': 'no-store',
+      });
       response.end(fs.readFileSync(path.join(publicDirectory, 'style.css')));
       return true;
     }
@@ -84,8 +93,7 @@ export function createAdminHandler(config, relay, telemetry) {
       return true;
     }
     if (request.method === 'GET' && url.pathname === '/api/admin/events') {
-      const limit = Math.min(Number(url.searchParams.get('limit')) || 500, 5000);
-      json(response, 200, telemetry.events.slice(-limit));
+      json(response, 200, telemetry.events.slice(-eventLimit(url.searchParams)));
       return true;
     }
     if (request.method === 'GET' && url.pathname === '/api/admin/devices') {

@@ -13,6 +13,16 @@ service publicly if topology counts are sensitive. Logs must never include
 message bodies, query strings, or raw client identifiers. Use infrastructure
 connection metrics for capacity.
 
+The HTTP routes match on the path only, so probes such as `/healthz?source=lb`
+work. Request targets that cannot be parsed are answered with `400 bad_request`,
+and any unexpected failure while serving a request or handling a WebSocket
+message is logged (message only, never the request target or body) and
+answered with `500 internal_error` or an `internal_error` WebSocket error,
+instead of terminating the process for every connected room. The admin
+`GET /api/admin/events?limit=N` endpoint returns the newest `N` events, where
+`N` is truncated to an integer and clamped to 1–5000; missing, non-numeric, or
+non-positive values use the default of 500.
+
 Container deployments must persist `/data`, keep the root filesystem read-only,
 run as the image's non-root user, and expose the application directly only on a
 trusted local network. Public deployments use the TLS proxy topology documented

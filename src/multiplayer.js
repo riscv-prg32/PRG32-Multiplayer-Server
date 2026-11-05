@@ -27,7 +27,16 @@ export class MultiplayerRelay {
     };
     this.clients.add(client);
     this.telemetry?.record('connection_opened');
-    socket.on('message', (data, isBinary) => this.#message(client, data, isBinary));
+    socket.on('message', (data, isBinary) => {
+      try {
+        this.#message(client, data, isBinary);
+      } catch (error) {
+        // An unexpected failure (for example a telemetry write error) must only
+        // affect this message, never crash the process and every other room.
+        this.logger.error?.('message handling failed', error.message);
+        this.#fail(client, 'internal_error');
+      }
+    });
     socket.on('close', () => this.#remove(client));
     socket.on('error', (error) => this.logger.warn?.('websocket error', error.message));
   }
@@ -76,7 +85,7 @@ export class MultiplayerRelay {
   }
 
   #join(client, message) {
-    this.#leave(client, false);
+    this.#leave(client);
     client.identity = createIdentity(message, this.config.deviceIdSecret);
     if (this.telemetry?.isBlocked(client.identity.deviceId))
       return this.#fail(client, 'device_blocked', 1008);
@@ -128,10 +137,10 @@ export class MultiplayerRelay {
     });
   }
 
-  #leave(client, notify = true) {
+  #leave(client) {
     if (!client.room) return;
     const room = this.rooms.get(client.room);
-    if (notify) this.#broadcast(client, { type: 'leave', player_id: client.playerId });
+    this.#broadcast(client, { type: 'leave', player_id: client.playerId });
     room?.delete(client);
     if (room?.size === 0) this.rooms.delete(client.room);
     client.room = null;

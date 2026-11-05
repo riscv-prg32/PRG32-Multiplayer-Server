@@ -34,3 +34,12 @@ test('stable IDs are private, stable, and platform separated', () => {
   assert.notEqual(a.connectionId, b.connectionId);
   assert.equal(a.deviceId.includes('raw-id'), false);
 });
+
+test('rejects signatures that are not strings', () => {
+  for (const signature of [123, true, ['game'], { name: 'game' }])
+    assert.throws(
+      () =>
+        parseMessage(Buffer.from(JSON.stringify({ type: 'join', signature })), 1024),
+      /invalid_signature/,
+    );
+});

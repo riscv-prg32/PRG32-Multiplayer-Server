@@ -6,21 +6,44 @@ import { MultiplayerRelay } from './multiplayer.js';
 import { TelemetryStore } from './telemetry.js';
 import { createAdminHandler } from './admin.js';
 
+// The request target is client-controlled; an unparsable one is a 400, not a crash.
+const parseRequestUrl = (target) => {
+  try {
+    return new URL(target, 'http://localhost');
+  } catch {
+    return null;
+  }
+};
+
 export function createServer(config = loadConfig(), logger = console) {
   const telemetry = new TelemetryStore(config);
   const relay = new MultiplayerRelay(config, logger, telemetry);
   const admin = createAdminHandler(config, relay, telemetry);
-  const server = http.createServer((request, response) => {
+  const route = (request, response) => {
     response.setHeader('content-type', 'application/json; charset=utf-8');
     response.setHeader('cache-control', 'no-store');
-    if (admin(request, response)) return;
-    if (request.method === 'GET' && request.url === '/healthz') {
+    response.setHeader('x-content-type-options', 'nosniff');
+    const url = parseRequestUrl(request.url);
+    if (!url)
+      return response.writeHead(400).end(JSON.stringify({ error: 'bad_request' }));
+    if (admin(request, response, url)) return;
+    if (request.method === 'GET' && url.pathname === '/healthz') {
       response.writeHead(200).end(JSON.stringify({ status: 'ok' }));
-    } else if (request.method === 'GET' && request.url === '/readyz') {
+    } else if (request.method === 'GET' && url.pathname === '/readyz') {
       response
         .writeHead(200)
         .end(JSON.stringify({ status: 'ready', ...relay.stats() }));
     } else response.writeHead(404).end(JSON.stringify({ error: 'not_found' }));
+  };
+  // A throwing request handler would otherwise crash the whole relay.
+  const server = http.createServer((request, response) => {
+    try {
+      route(request, response);
+    } catch (error) {
+      logger.error?.('request failed', error.message);
+      if (response.headersSent) response.end();
+      else response.writeHead(500).end(JSON.stringify({ error: 'internal_error' }));
+    }
   });
   const webSockets = new WebSocketServer({
     noServer: true,

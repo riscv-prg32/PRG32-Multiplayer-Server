@@ -103,8 +103,10 @@ is not suitable for display, logging, analytics, or peer messages.
 
 ### Cartridge signature
 
-`signature` MUST contain 1–47 ASCII characters from `A–Z`, `a–z`, `0–9`, `_`,
-`-`, `.`, and `:`. It is compared as an exact, case-sensitive string.
+`signature` MUST be a JSON string of 1–47 ASCII characters from `A–Z`, `a–z`, `0–9`, `_`,
+`-`, `.`, and `:`. It is compared as an exact, case-sensitive string; numbers, booleans, arrays,
+and objects are rejected with `invalid_signature` even when their text form
+would match the grammar.
 
 A signature denotes network compatibility, not merely a marketing title.
 Cartridge maintainers SHOULD change it when two builds no longer interpret the
@@ -189,7 +191,10 @@ CONNECTED_UNJOINED
 `join` and `ping` are meaningful before a successful join; `leave` is also
 accepted as an idempotent no-op. Sending `state` before joining produces
 `join_required`. A second valid `join` moves the same connection to the new
-signature: the old membership is removed before the new room is entered.
+signature: the old membership is removed before the new room is entered, and
+the members of the old room receive the same `leave` notification they would
+see if the connection had sent `leave` or closed. This also applies when the
+new `join` fails (for example `room_full`): the connection ends up unjoined.
 
 A client enters `JOINED` only after receiving `welcome`. The firmware MAY queue
 one latest local snapshot while `JOIN_PENDING`, but MUST NOT transmit it until
@@ -382,20 +387,21 @@ Errors have the form:
 
 Defined codes include:
 
-| Code                                                                         | Meaning                                      | Typical client action                                |
-| ---------------------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------- |
-| `invalid_json`                                                               | frame is not valid JSON                      | fix serializer; do not retry unchanged               |
-| `invalid_message`                                                            | JSON value is not an object                  | fix serializer                                       |
-| `unknown_type`                                                               | unsupported `type`                           | negotiate/use supported protocol                     |
-| `message_too_large`                                                          | configured size limit exceeded               | reduce payload                                       |
-| `invalid_signature`                                                          | signature grammar failed                     | fix cartridge metadata                               |
-| `invalid_player_id`, `invalid_flags`, `invalid_device_id`                    | join field failed validation                 | fix identity/join construction                       |
-| `invalid_x`, `invalid_y`, `invalid_sprite`, `invalid_input`, `invalid_frame` | state field failed validation                | clamp or fix ABI mapping                             |
-| `join_required`                                                              | state arrived before welcome/join            | restore lifecycle sequencing                         |
-| `room_full`                                                                  | room reached its configured capacity         | inform user or retry later                           |
-| `device_blocked`                                                             | administrator denied the pseudonymous device | stop automatic reconnect and inform user             |
-| `rate_limited`                                                               | message rate exceeded policy                 | back off; connection is closed with policy code 1008 |
-| `binary_not_supported`                                                       | client sent a binary frame                   | use UTF-8 text JSON                                  |
+| Code                                                                                          | Meaning                                      | Typical client action                                |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------- |
+| `invalid_json`                                                                                | frame is not valid JSON                      | fix serializer; do not retry unchanged               |
+| `invalid_message`                                                                             | JSON value is not an object                  | fix serializer                                       |
+| `unknown_type`                                                                                | unsupported `type`                           | negotiate/use supported protocol                     |
+| `message_too_large`                                                                           | configured size limit exceeded               | reduce payload                                       |
+| `invalid_signature`                                                                           | signature grammar failed                     | fix cartridge metadata                               |
+| `invalid_player_id`, `invalid_flags`, `invalid_device_id`                                     | join field failed validation                 | fix identity/join construction                       |
+| `invalid_x`, `invalid_y`, `invalid_sprite`, `invalid_flags`, `invalid_input`, `invalid_frame` | state field failed validation                | clamp or fix ABI mapping                             |
+| `join_required`                                                                               | state arrived before welcome/join            | restore lifecycle sequencing                         |
+| `room_full`                                                                                   | room reached its configured capacity         | inform user or retry later                           |
+| `device_blocked`                                                                              | administrator denied the pseudonymous device | stop automatic reconnect and inform user             |
+| `rate_limited`                                                                                | message rate exceeded policy                 | back off; connection is closed with policy code 1008 |
+| `internal_error`                                                                              | server failed while handling the message     | retry later with backoff; connection stays open      |
+| `binary_not_supported`                                                                        | client sent a binary frame                   | use UTF-8 text JSON                                  |
 
 Validation errors ordinarily reject only the message so a client can recover.
 Policy violations such as rate limiting or blocking may close the WebSocket.
