@@ -1,136 +1,420 @@
-const login = document.querySelector('#login');
-const dashboard = document.querySelector('#dashboard');
-const tokenInput = document.querySelector('#token');
-let token = sessionStorage.getItem('prg32-admin-token') || '';
-const renderPublicStats = async () => {
-  const response = await fetch('/api/stats', { cache: 'no-store' });
-  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-  const stats = await response.json();
-  document.querySelector('#public-cards').innerHTML = [
-    ['Connections', stats.connections],
-    ['Rooms', stats.rooms],
-  ]
-    .map(
-      ([key, value]) =>
-        `<div class="card"><span>${key}</span><strong>${value}</strong></div>`,
-    )
-    .join('');
-  document.querySelector('#public-stats-status').textContent =
-    `Updated ${new Date(stats.generated_at).toLocaleTimeString()}`;
+// Admin console. The token lives only in sessionStorage (this tab), is sent only
+// to this server's /api/admin/ endpoints, and is removed on sign-out.
+const TOKEN_KEY = 'prg32-admin-token';
+const REFRESH_MS = 10000;
+// The most the events API returns; the chart says "at least" when it is reached.
+const EVENT_LIMIT = 5000;
+const $ = (selector) => document.querySelector(selector);
+const login = $('#login');
+const loginForm = $('#login-form');
+const dashboard = $('#dashboard');
+const tokenInput = $('#token');
+const tokenError = $('#token-error');
+const announcer = $('#announcer');
+const pauseButton = $('#admin-pause');
+const filterInput = $('#device-filter');
+const eraseDialog = $('#erase-dialog');
+const numbers = new Intl.NumberFormat();
+const dateTime = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'medium',
+});
+const SVG = 'http://www.w3.org/2000/svg';
+
+const storage = {
+  get: () => {
+    try {
+      return sessionStorage.getItem(TOKEN_KEY) || '';
+    } catch {
+      return '';
+    }
+  },
+  set: (value) => {
+    try {
+      sessionStorage.setItem(TOKEN_KEY, value);
+    } catch {
+      // Storage blocked: the session lasts for this page view only.
+    }
+  },
+  clear: () => {
+    try {
+      sessionStorage.removeItem(TOKEN_KEY);
+    } catch {
+      // Nothing stored.
+    }
+  },
 };
+
+let token = storage.get();
+let paused = false;
+let timer = null;
+let devices = [];
+
+const announce = (message) => {
+  // Clearing first makes a repeated message announce again.
+  announcer.textContent = '';
+  setTimeout(() => (announcer.textContent = message), 50);
+};
+
+class AuthError extends Error {}
+
 const api = async (path, options = {}) => {
   const response = await fetch(path, {
     ...options,
+    cache: 'no-store',
     headers: { authorization: `Bearer ${token}` },
   });
-  if (!response.ok)
-    throw new Error(
-      response.status === 401 ? 'Invalid token' : `Request failed: ${response.status}`,
-    );
+  if (response.status === 401) throw new AuthError('The admin token was not accepted.');
+  if (!response.ok) throw new Error(`The server answered ${response.status}.`);
   return response;
 };
-const escape = (value) => {
-  const node = document.createElement('span');
+
+const text = (tag, value, className) => {
+  const node = document.createElement(tag);
   node.textContent = value ?? '';
-  return node.innerHTML;
+  if (className) node.className = className;
+  return node;
 };
-const render = async () => {
-  const [stats, events, devices] = await Promise.all([
-    (await api('/api/admin/stats')).json(),
-    (await api('/api/admin/events?limit=500')).json(),
-    (await api('/api/admin/devices')).json(),
-  ]);
-  document.querySelector('#cards').innerHTML = [
-    ['Connections', stats.connections],
-    ['Rooms', stats.rooms],
+
+const time = (iso) => {
+  const node = document.createElement('time');
+  if (!iso) return text('span', '—');
+  node.dateTime = iso;
+  node.textContent = dateTime.format(new Date(iso));
+  return node;
+};
+
+const row = (cells) => {
+  const tr = document.createElement('tr');
+  for (const cell of cells) {
+    const td = document.createElement('td');
+    td.append(cell);
+    tr.append(td);
+  }
+  return tr;
+};
+
+// Re-rendering replaces the action buttons, so keep keyboard focus where it was.
+const preserveFocus = (update) => {
+  const key = document.activeElement?.dataset?.focusKey;
+  update();
+  if (key) document.querySelector(`[data-focus-key="${CSS.escape(key)}"]`)?.focus();
+};
+
+const renderCards = (stats) => {
+  const cards = [
+    ['Players connected', stats.connections],
+    ['Active rooms', stats.rooms],
     ['Known devices', stats.known_devices],
     ['Retained events', stats.retained_events],
-  ]
-    .map(([k, v]) => `<div class="card"><span>${k}</span><strong>${v}</strong></div>`)
-    .join('');
-  document.querySelector('#events').innerHTML = events
-    .slice(-100)
-    .reverse()
-    .map(
-      (e) =>
-        `<tr><td>${escape(e.timestamp)}</td><td>${escape(e.type)}</td><td>${escape(e.platform)}</td><td>${escape(e.room)}</td><td>${escape(e.bytes)}</td></tr>`,
-    )
-    .join('');
-  document.querySelector('#devices').innerHTML = devices
-    .map(
-      (d) =>
-        `<tr><td>${escape(d.device_id)}</td><td>${escape(d.platform)}</td><td>${escape(d.last_seen)}</td><td>${d.connections}</td><td><button data-device="${d.device_id}" data-action="${d.blocked ? 'unblock' : 'block'}">${d.blocked ? 'Unblock' : 'Block'}</button> <button data-device="${d.device_id}" data-action="erase">Erase</button></td></tr>`,
-    )
-    .join('');
-  draw(events);
+    ['Retention', `${stats.retention_days} days`],
+  ];
+  $('#cards').replaceChildren(
+    ...cards.map(([label, value]) => {
+      const item = text('div', '', 'metric');
+      item.append(
+        text('dt', label),
+        text('dd', typeof value === 'number' ? numbers.format(value) : value),
+      );
+      return item;
+    }),
+  );
+  $('#privacy-warning').hidden = stats.privacy_notice_ready !== false;
 };
-const draw = (events) => {
-  const canvas = document.querySelector('#chart'),
-    ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const bins = Array(60).fill(0),
-    now = Date.now();
-  for (const e of events) {
-    const age = Math.floor((now - Date.parse(e.timestamp)) / 60000);
+
+const renderChart = (events) => {
+  const bins = Array(60).fill(0);
+  const now = Date.now();
+  for (const event of events) {
+    const age = Math.floor((now - Date.parse(event.timestamp)) / 60000);
     if (age >= 0 && age < 60) bins[59 - age]++;
   }
   const max = Math.max(1, ...bins);
-  ctx.fillStyle = '#66d9a6';
-  bins.forEach((v, i) =>
-    ctx.fillRect(
-      i * 15,
-      canvas.height - (v / max) * (canvas.height - 20),
-      11,
-      (v / max) * (canvas.height - 20),
-    ),
-  );
+  const total = bins.reduce((sum, value) => sum + value, 0);
+  const peak = Math.max(...bins);
+  const chart = $('#chart');
+  const width = 600 / 60;
+  const bars = [];
+  const baseline = document.createElementNS(SVG, 'line');
+  baseline.setAttribute('class', 'chart-axis');
+  for (const [name, value] of Object.entries({ x1: 0, x2: 600, y1: 150, y2: 150 }))
+    baseline.setAttribute(name, value);
+  bins.forEach((value, index) => {
+    if (!value) return;
+    const height = (value / max) * 140;
+    const bar = document.createElementNS(SVG, 'rect');
+    bar.setAttribute('class', 'chart-bar');
+    bar.setAttribute('x', String(index * width + 1));
+    bar.setAttribute('y', String(150 - height));
+    bar.setAttribute('width', String(width - 2));
+    bar.setAttribute('height', String(height));
+    bars.push(bar);
+  });
+  chart.replaceChildren(baseline, ...bars);
+  $('#chart-summary').textContent = total
+    ? `${events.length >= EVENT_LIMIT ? 'At least ' : ''}${numbers.format(total)} events in the last 60 minutes; busiest minute had ${numbers.format(peak)}. Oldest minute on the left, newest on the right.`
+    : 'No events in the last 60 minutes.';
+  const rows = [];
+  for (let index = 59; index >= 0; index--) {
+    if (!bins[index]) continue;
+    const minute = new Date(now - (59 - index) * 60000);
+    rows.push(
+      row([
+        text(
+          'span',
+          minute.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        ),
+        text('span', numbers.format(bins[index])),
+      ]),
+    );
+  }
+  if (!rows.length) rows.push(row([text('span', 'No events'), text('span', '0')]));
+  $('#chart-table').replaceChildren(...rows);
 };
-document.querySelector('form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  token = tokenInput.value;
+
+const actionButton = (label, deviceId, action, className = 'secondary') => {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `button small ${className}`;
+  button.dataset.device = deviceId;
+  button.dataset.action = action;
+  // Block and Unblock are the same control, so focus survives the toggle.
+  button.dataset.focusKey = `${action === 'unblock' ? 'block' : action}:${deviceId}`;
+  button.append(label, text('span', ` device ${deviceId}`, 'visually-hidden'));
+  return button;
+};
+
+const renderDevices = () => {
+  const query = filterInput.value.trim().toLowerCase();
+  const visible = devices.filter((device) =>
+    device.device_id.toLowerCase().includes(query),
+  );
+  preserveFocus(() => {
+    const rows = visible.map((device) => {
+      const actions = text('div', '', 'action-cell');
+      actions.append(
+        actionButton('Export', device.device_id, 'export'),
+        actionButton(
+          device.blocked ? 'Unblock' : 'Block',
+          device.device_id,
+          device.blocked ? 'unblock' : 'block',
+        ),
+        actionButton('Erase', device.device_id, 'erase', 'danger'),
+      );
+      return row([
+        text('code', device.device_id),
+        text('span', device.platform),
+        time(device.first_seen),
+        time(device.last_seen),
+        text('span', numbers.format(device.connections)),
+        text(
+          'span',
+          device.blocked ? 'Blocked' : 'Allowed',
+          `badge ${device.blocked ? 'blocked' : 'allowed'}`,
+        ),
+        actions,
+      ]);
+    });
+    if (!rows.length) {
+      const empty = text(
+        'td',
+        query ? 'No device matches this ID.' : 'No devices yet.',
+        'empty',
+      );
+      empty.colSpan = 7;
+      const tr = document.createElement('tr');
+      tr.append(empty);
+      rows.push(tr);
+    }
+    $('#devices').replaceChildren(...rows);
+  });
+  $('#device-count').textContent = query
+    ? `${visible.length} of ${devices.length} devices match.`
+    : `${devices.length} devices.`;
+};
+
+const renderEvents = (events) => {
+  const rows = events
+    .slice(-100)
+    .reverse()
+    .map((event) =>
+      row([
+        time(event.timestamp),
+        text('span', event.type),
+        text('span', event.platform ?? '—'),
+        text('span', event.room ?? '—'),
+        text('span', event.bytes === undefined ? '—' : numbers.format(event.bytes)),
+      ]),
+    );
+  if (!rows.length) {
+    const empty = text('td', 'No events retained.', 'empty');
+    empty.colSpan = 5;
+    const tr = document.createElement('tr');
+    tr.append(empty);
+    rows.push(tr);
+  }
+  $('#events').replaceChildren(...rows);
+};
+
+const render = async () => {
+  const [stats, events, deviceList] = await Promise.all([
+    api('/api/admin/stats').then((response) => response.json()),
+    api(`/api/admin/events?limit=${EVENT_LIMIT}`).then((response) => response.json()),
+    api('/api/admin/devices').then((response) => response.json()),
+  ]);
+  devices = deviceList;
+  renderCards(stats);
+  renderChart(events);
+  renderDevices();
+  renderEvents(events);
+  $('#dashboard-updated').textContent =
+    `${paused ? 'Paused' : 'Updated'} ${new Date().toLocaleTimeString()}`;
+};
+
+const signOut = (message) => {
+  clearInterval(timer);
+  token = '';
+  storage.clear();
+  devices = [];
+  dashboard.hidden = true;
+  login.hidden = false;
+  tokenInput.value = '';
+  if (message) showLoginError(message);
+  tokenInput.focus();
+};
+
+const showLoginError = (message) => {
+  tokenError.textContent = message;
+  tokenInput.setAttribute('aria-invalid', message ? 'true' : 'false');
+};
+
+const refreshSafely = async () => {
   try {
     await render();
-    sessionStorage.setItem('prg32-admin-token', token);
-    login.hidden = true;
-    dashboard.hidden = false;
   } catch (error) {
-    alert(error.message);
+    if (error instanceof AuthError) signOut('Your session ended. Sign in again.');
+    else $('#dashboard-updated').textContent = `Update failed: ${error.message}`;
+  }
+};
+
+const openDashboard = async () => {
+  await render();
+  storage.set(token);
+  login.hidden = true;
+  dashboard.hidden = false;
+  clearInterval(timer);
+  timer = setInterval(() => {
+    if (!paused && !document.hidden && !eraseDialog.open) refreshSafely();
+  }, REFRESH_MS);
+};
+
+loginForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!tokenInput.value) {
+    showLoginError('Enter the admin token.');
+    tokenInput.focus();
+    return;
+  }
+  showLoginError('');
+  token = tokenInput.value;
+  try {
+    await openDashboard();
+    tokenInput.value = '';
+    $('#main').focus();
+    announce('Signed in. Dashboard loaded.');
+  } catch (error) {
+    token = '';
+    showLoginError(error.message);
+    tokenInput.focus();
+    tokenInput.select();
   }
 });
-document.addEventListener('click', async (e) => {
-  const action = e.target.dataset.action;
-  if (action) {
-    if (action === 'erase' && !confirm('Erase this device and its retained events?'))
-      return;
-    await api(
-      `/api/admin/devices/${e.target.dataset.device}${action === 'erase' ? '' : `/${action}`}`,
-      { method: action === 'erase' ? 'DELETE' : 'POST' },
+
+$('#toggle-token').addEventListener('click', (event) => {
+  const show = tokenInput.type === 'password';
+  tokenInput.type = show ? 'text' : 'password';
+  event.currentTarget.setAttribute('aria-pressed', String(show));
+  tokenInput.focus();
+});
+
+$('#sign-out').addEventListener('click', () => {
+  signOut();
+  announce('Signed out. The token was removed from this browser.');
+});
+$('#refresh').addEventListener('click', async () => {
+  await refreshSafely();
+  announce('Dashboard refreshed.');
+});
+pauseButton.addEventListener('click', () => {
+  paused = !paused;
+  pauseButton.textContent = paused ? 'Resume live updates' : 'Pause live updates';
+  announce(paused ? 'Live updates paused.' : 'Live updates resumed.');
+  if (!paused) refreshSafely();
+});
+filterInput.addEventListener('input', renderDevices);
+
+const download = async (path, filename) => {
+  const response = await api(path);
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(await response.blob());
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+};
+
+const confirmErase = (deviceId) =>
+  new Promise((resolve) => {
+    $('#erase-device').textContent = deviceId;
+    eraseDialog.returnValue = '';
+    eraseDialog.addEventListener(
+      'close',
+      () => resolve(eraseDialog.returnValue === 'erase'),
+      {
+        once: true,
+      },
     );
-    await render();
-  }
-  if (e.target.dataset.export) {
-    const response = await api(`/api/admin/export?format=${e.target.dataset.export}`);
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(await response.blob());
-    link.download = `prg32-telemetry.${e.target.dataset.export}`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    eraseDialog.showModal();
+  });
+
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest('button[data-action], button[data-export]');
+  if (!button) return;
+  try {
+    if (button.dataset.export) {
+      const format = button.dataset.export;
+      await download(`/api/admin/export?format=${format}`, `prg32-telemetry.${format}`);
+      announce(`Telemetry exported as ${format.toUpperCase()}.`);
+      return;
+    }
+    const { device, action } = button.dataset;
+    const path = `/api/admin/devices/${encodeURIComponent(device)}`;
+    if (action === 'export') {
+      await download(`${path}/export`, `prg32-device-${device}.json`);
+      announce(`Data for device ${device} exported.`);
+    } else if (action === 'erase') {
+      if (!(await confirmErase(device))) {
+        button.focus();
+        return;
+      }
+      await api(path, { method: 'DELETE' });
+      await render();
+      filterInput.focus();
+      announce(`Device ${device} and its events were erased.`);
+    } else {
+      await api(`${path}/${action}`, { method: 'POST' });
+      await render();
+      announce(`Device ${device} ${action === 'block' ? 'blocked' : 'unblocked'}.`);
+    }
+  } catch (error) {
+    if (error instanceof AuthError) signOut('Your session ended. Sign in again.');
+    else announce(`Action failed: ${error.message}`);
   }
 });
-if (token) {
-  tokenInput.value = token;
-  render()
-    .then(() => {
-      login.hidden = true;
-      dashboard.hidden = false;
-    })
-    .catch(() => sessionStorage.removeItem('prg32-admin-token'));
-}
-renderPublicStats().catch(() => {
-  document.querySelector('#public-stats-status').textContent =
-    'Live statistics are temporarily unavailable.';
-});
-setInterval(() => {
-  renderPublicStats().catch(() => {});
-  if (!dashboard.hidden) render().catch(() => {});
-}, 2000);
+
+if (token)
+  openDashboard().catch(() => {
+    token = '';
+    storage.clear();
+  });

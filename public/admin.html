@@ -1,0 +1,199 @@
+<h1 class="page-title">Admin console</h1>
+
+<section class="panel signin" id="login" aria-labelledby="login-heading">
+  <h2 id="login-heading">Sign in</h2>
+  <form id="login-form" novalidate>
+    <div class="field">
+      <label for="token">Admin token</label>
+      <div class="input-group">
+        <input
+          id="token"
+          name="token"
+          type="password"
+          autocomplete="current-password"
+          spellcheck="false"
+          autocapitalize="off"
+          required
+          aria-describedby="token-hint token-error"
+        />
+        <button
+          type="button"
+          class="button secondary"
+          id="toggle-token"
+          aria-pressed="false"
+          aria-controls="token"
+        >
+          Show
+        </button>
+      </div>
+      <p class="hint" id="token-hint">
+        The <code>ADMIN_TOKEN</code> configured on the server. It is kept only in this
+        browser tab and forgotten when you sign out or close the tab.
+      </p>
+      <p class="field-error" id="token-error" role="alert"></p>
+    </div>
+    <button type="submit">Open dashboard</button>
+  </form>
+</section>
+
+<div id="dashboard" hidden>
+  <div class="toolbar" role="group" aria-label="Dashboard controls">
+    <p class="muted" id="dashboard-updated" aria-live="off">Not updated yet</p>
+    <button type="button" class="button secondary" id="admin-pause">
+      Pause live updates
+    </button>
+    <button type="button" class="button secondary" id="refresh">Refresh now</button>
+    <button type="button" class="button secondary" id="sign-out">Sign out</button>
+  </div>
+
+  <div class="notice warning" id="privacy-warning" role="note" hidden>
+    <h2>Privacy notice not yet customized</h2>
+    <p>
+      <code>public/privacy.md</code> is still the shipped template. Replace it with your
+      controller identity, contacts, legal basis, and hosting details before inviting
+      players.
+      <a
+        href="https://github.com/riscv-prg32/PRG32-Multiplayer-Server/blob/main/docs/gdpr.md"
+        >GDPR deployment guide</a
+      >
+    </p>
+  </div>
+
+  <section aria-labelledby="overview-heading">
+    <h2 id="overview-heading" class="visually-hidden">Overview</h2>
+    <dl class="metrics cards" id="cards"></dl>
+  </section>
+
+  <section class="panel" aria-labelledby="flux-heading">
+    <h2 id="flux-heading">Data flux, last 60 minutes</h2>
+    <figure class="chart-figure">
+      <svg
+        id="chart"
+        class="chart"
+        viewBox="0 0 600 160"
+        preserveAspectRatio="none"
+        role="img"
+        aria-labelledby="chart-summary"
+        focusable="false"
+      ></svg>
+      <figcaption id="chart-summary" class="muted">No events yet.</figcaption>
+    </figure>
+    <details>
+      <summary>Show chart data as a table</summary>
+      <table class="data-table">
+        <caption class="visually-hidden">
+          Events per minute, most recent first
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Minute</th>
+            <th scope="col">Events</th>
+          </tr>
+        </thead>
+        <tbody id="chart-table"></tbody>
+      </table>
+    </details>
+  </section>
+
+  <section class="panel" aria-labelledby="devices-heading">
+    <div class="panel-head">
+      <h2 id="devices-heading">Devices and data-subject requests</h2>
+      <div class="panel-actions">
+        <button type="button" class="button secondary" data-export="json">
+          Export all (JSON)
+        </button>
+        <button type="button" class="button secondary" data-export="csv">
+          Export all (CSV)
+        </button>
+      </div>
+    </div>
+    <p class="hint">
+      Ask the player for the public device ID their client shows, then export, block, or
+      erase it. Never ask for a MAC address or other raw identifier.
+    </p>
+    <div class="field search-field">
+      <label for="device-filter">Find a device ID</label>
+      <input
+        id="device-filter"
+        type="search"
+        autocomplete="off"
+        spellcheck="false"
+        aria-describedby="device-count"
+      />
+      <p class="hint" id="device-count" role="status"></p>
+    </div>
+    <div
+      class="table-scroll"
+      tabindex="0"
+      role="region"
+      aria-labelledby="devices-heading"
+    >
+      <table class="data-table">
+        <caption class="visually-hidden">
+          Known devices
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Device ID</th>
+            <th scope="col">Platform</th>
+            <th scope="col">First seen</th>
+            <th scope="col">Last seen</th>
+            <th scope="col">Connections</th>
+            <th scope="col">Status</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="devices"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="events-heading">
+    <h2 id="events-heading">Recent events</h2>
+    <div
+      class="table-scroll"
+      tabindex="0"
+      role="region"
+      aria-labelledby="events-heading"
+    >
+      <table class="data-table">
+        <caption class="visually-hidden">
+          The 100 most recent events, newest first
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Time</th>
+            <th scope="col">Type</th>
+            <th scope="col">Platform</th>
+            <th scope="col">Room</th>
+            <th scope="col">Bytes</th>
+          </tr>
+        </thead>
+        <tbody id="events"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<p class="visually-hidden" id="announcer" role="status" aria-live="polite"></p>
+
+<dialog
+  id="erase-dialog"
+  aria-labelledby="erase-title"
+  aria-describedby="erase-description"
+>
+  <form method="dialog">
+    <h2 id="erase-title">Erase this device?</h2>
+    <p id="erase-description">
+      Device <code id="erase-device"></code> will be disconnected, and its record and
+      all of its retained events will be permanently deleted. Backups and external logs
+      are not affected and must be handled separately.
+    </p>
+    <div class="dialog-actions">
+      <button type="submit" value="cancel" class="button secondary" autofocus>
+        Cancel
+      </button>
+      <button type="submit" value="erase" class="button danger">Erase device</button>
+    </div>
+  </form>
+</dialog>

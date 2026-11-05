@@ -151,17 +151,20 @@ GDPR boundary.
   coordination, durable match state, human authentication, or anti-cheat game
   authority.
 
-## Administration interface
+## Web interface
 
-The browser interface is part of the administration plane, not the player
-protocol. It begins with a token gate; the token is retained in browser
-`sessionStorage` only and is sent as an authorization header to admin APIs.
+The browser pages are part of the administration plane, not the player
+protocol. `src/pages.js` renders a public status page (`/`), the admin console
+(`/admin`), the privacy notice (`/privacy`), and the accessibility statement
+(`/accessibility`) in the shared PRG32 SDK look. The admin console begins with a
+token gate; the token is retained in browser `sessionStorage` only and is sent
+as an authorization header to admin APIs.
 
 ![Administration login](images/admin-login.png)
 
 After authentication, the dashboard presents live connection/room counts,
-historical event flux, pseudonymous devices, export actions, and recent
-minimized events. The screenshot below was captured from the hardened Compose
-deployment with simulated ESP32-C6, QEMU, PRG32-QT, and PRG32-iOS clients.
+retention, historical event flux, pseudonymous devices with export, block, and
+erase actions, and recent minimized events. See [Web interface](web-interface.md)
+for pages, accessibility, and privacy-by-design details.
 
 ![Populated administration dashboard](images/admin-dashboard.png)

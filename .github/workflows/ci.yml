@@ -61,7 +61,7 @@ jobs:
           curl --fail --silent http://127.0.0.1:8081/healthz
           test "$(docker inspect --format '{{.Config.User}}' prg32-smoke)" = prg32
           test "$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.licenses"}}' prg32-smoke)" = MIT
-          curl --fail --silent http://127.0.0.1:8081/admin | grep 'PRG32 Multiplayer Admin'
+          curl --fail --silent http://127.0.0.1:8081/admin | grep 'Admin console'
           curl --fail --silent http://127.0.0.1:8081/app.js | grep 'prg32-admin-token'
       - name: Show container logs
         if: failure()

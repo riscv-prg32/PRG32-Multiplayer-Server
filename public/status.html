@@ -1,0 +1,62 @@
+<section class="hero" aria-labelledby="status-heading">
+  <div class="hero-copy">
+    <p class="eyebrow">PRG32 SDK · Multiplayer relay</p>
+    <h1 id="status-heading">Multiplayer now</h1>
+    <p class="lede">
+      PRG32 consoles, the Qt desktop player, the iOS app, and QEMU meet here to play
+      cartridges together in real time.
+    </p>
+    <p class="service-state">
+      <span class="pill" id="service-state" data-state="loading">Checking…</span>
+      <span class="muted" id="public-stats-status">Loading live statistics…</span>
+    </p>
+  </div>
+  <dl class="metrics" id="public-cards">
+    <div class="metric">
+      <dt>Players connected</dt>
+      <dd id="stat-connections">—</dd>
+    </div>
+    <div class="metric">
+      <dt>Active rooms</dt>
+      <dd id="stat-rooms">—</dd>
+    </div>
+  </dl>
+  <div class="hero-actions">
+    <button type="button" class="button secondary" id="pause-updates">
+      Pause live updates
+    </button>
+  </div>
+  <p class="visually-hidden" id="status-announcer" role="status"></p>
+</section>
+
+<section class="panel-grid" aria-label="About this service">
+  <article class="panel">
+    <h2>How to join</h2>
+    <p>
+      Open a multiplayer-enabled cartridge and choose this server. Players running the
+      same cartridge share a room automatically.
+    </p>
+    <p>
+      <a
+        href="https://github.com/riscv-prg32/PRG32-Multiplayer-Server/blob/main/docs/playing.md"
+        >Read the player guide</a
+      >
+    </p>
+  </article>
+  <article class="panel">
+    <h2>Your privacy</h2>
+    <p>
+      The relay forwards game state without storing it. It keeps only a pseudonymous
+      device ID, the platform, the room, and message sizes, for a limited time.
+    </p>
+    <p><a href="/privacy">Read the privacy notice</a></p>
+  </article>
+  <article class="panel">
+    <h2>Operators</h2>
+    <p>
+      Telemetry, device management, and data-subject requests are available to
+      administrators only.
+    </p>
+    <p><a href="/admin">Open the admin console</a></p>
+  </article>
+</section>

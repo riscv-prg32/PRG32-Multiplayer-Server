@@ -139,6 +139,24 @@ test('admin API authenticates, exports telemetry, and erases a device', async (t
     await (await fetch(`${base}/api/admin/export?format=csv`, { headers })).text(),
     /room_joined/,
   );
+  const exported = await fetch(
+    `${base}/api/admin/devices/${welcome.device_id}/export`,
+    {
+      headers,
+    },
+  );
+  assert.equal(exported.status, 200);
+  assert.match(exported.headers.get('content-disposition'), /attachment/);
+  const portable = await exported.json();
+  assert.equal(portable.device.device_id, welcome.device_id);
+  assert.ok(portable.events.length > 0);
+  assert.ok(portable.events.every((event) => event.device_id === welcome.device_id));
+  assert.equal(
+    (await fetch(`${base}/api/admin/devices/${welcome.device_id}/export`)).status,
+    401,
+  );
+  const stats = await (await fetch(`${base}/api/admin/stats`, { headers })).json();
+  assert.equal(stats.privacy_notice_ready, false);
   const erased = await fetch(`${base}/api/admin/devices/${welcome.device_id}`, {
     method: 'DELETE',
     headers,
@@ -270,4 +288,54 @@ test('a failing telemetry write is reported to the client, not thrown', async (t
   assert.deepEqual(await next(socket), { type: 'error', code: 'internal_error' });
   socket.send(JSON.stringify({ type: 'ping' }));
   assert.equal((await next(socket)).type, 'pong');
+});
+
+test('serves accessible, self-contained HTML pages', async (t) => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'prg32-test-'));
+  const app = createServer(
+    loadConfig({ DATA_DIR: dataDir, TELEMETRY_RETENTION_DAYS: '7' }),
+  );
+  await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
+  t.after(() => app.close());
+  const { port } = app.server.address();
+  const base = `http://127.0.0.1:${port}`;
+  for (const [path, title] of [
+    ['/', 'Status'],
+    ['/admin', 'Admin'],
+    ['/privacy', 'Privacy notice'],
+    ['/accessibility', 'Accessibility statement'],
+  ]) {
+    const response = await fetch(`${base}${path}`);
+    assert.equal(response.status, 200, path);
+    assert.match(response.headers.get('content-type'), /text\/html/);
+    const policy = response.headers.get('content-security-policy');
+    assert.match(policy, /default-src 'none'/);
+    assert.match(policy, /frame-ancestors 'none'/);
+    assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
+    assert.equal(response.headers.get('set-cookie'), null);
+    const html = await response.text();
+    assert.match(html, /<html lang="en">/);
+    assert.match(html, new RegExp(`<title>${title} · PRG32 Multiplayer</title>`));
+    assert.match(html, /class="skip-link" href="#main"/);
+    assert.match(html, /<main id="main"/);
+    assert.match(html, /aria-current="page"/);
+    // Nothing is loaded from another origin.
+    assert.doesNotMatch(html, /(src|href)="(https?:)?\/\/(?!github\.com\/riscv-prg32)/);
+  }
+  const privacy = await (await fetch(`${base}/privacy`)).text();
+  assert.match(privacy, /<strong>7 days<\/strong>/);
+  assert.doesNotMatch(privacy, /prg32:privacy-template|\{\{/);
+  const markdown = await fetch(`${base}/privacy.md`);
+  assert.match(markdown.headers.get('content-type'), /text\/markdown/);
+  assert.match(await markdown.text(), /\*\*7 days\*\*/);
+  for (const asset of [
+    '/style.css',
+    '/app.js',
+    '/status.js',
+    '/theme.js',
+    '/prg32-logo.png',
+  ])
+    assert.equal((await fetch(`${base}${asset}`)).status, 200, asset);
+  assert.equal((await fetch(`${base}/index.html`)).status, 404);
+  assert.equal((await fetch(`${base}/../package.json`)).status, 404);
 });

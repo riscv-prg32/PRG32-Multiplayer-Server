@@ -19,7 +19,7 @@ Health: `http://localhost:8081/healthz`. WebSocket: `ws://localhost:8081/`.
 Existing PRG32 firmware is supported unchanged; new clients should send the
 identity fields in [the protocol reference](docs/protocol.md).
 
-![PRG32 administration dashboard](docs/images/admin-dashboard-live.png)
+![PRG32 multiplayer status page](docs/images/status-page.png)
 
 The [POING multi-screen cartridge](examples/poing-multiplayer/README.md) is an
 integration fixture for bouncing one ball across multiple QEMU/device screens.
@@ -35,6 +35,7 @@ integration fixture for bouncing one ball across multiple QEMU/device screens.
 - [Development](docs/development.md)
 - [Testing](docs/testing.md)
 - [Playing multiplayer games](docs/playing.md)
+- [Web interface and accessibility](docs/web-interface.md)
 - [Operations and security](docs/operations.md)
 - [GDPR deployment guide](docs/gdpr.md)
 - [Firmware enhancement specification](docs/firmware-enhancement.md)

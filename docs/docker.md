@@ -80,7 +80,7 @@ Open `http://127.0.0.1:8081/admin` and enter `ADMIN_TOKEN`. A PRG32 client uses
 `ws://HOST:8081/` on the local network. `localhost` is correct only when the
 client runs on the Docker host; physical consoles use the host's LAN address.
 
-![Dashboard served by the Compose container](images/admin-dashboard-live.png)
+![Admin console served by the Compose container](images/admin-dashboard.png)
 
 Follow logs and stop without deleting retained data:
 
@@ -278,7 +278,8 @@ Before publishing an image:
 1. Run `docker compose config` with non-production test secrets.
 2. Build with `docker build --pull` and inspect the MIT OCI license label.
 3. Start with a new named volume and wait for healthy status.
-4. Retrieve `/healthz`, `/readyz`, `/admin`, `/style.css`, and `/app.js`.
+4. Retrieve `/healthz`, `/readyz`, `/`, `/admin`, `/privacy`, `/accessibility`,
+   `/style.css`, and `/app.js`.
 5. Join three WebSocket clients, relay state, and confirm dashboard statistics.
 6. Restart the container and confirm retained telemetry/devices return.
 7. Export data, block/unblock a device, and exercise erasure.
