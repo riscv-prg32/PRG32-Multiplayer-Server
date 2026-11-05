@@ -7,7 +7,7 @@ troubleshooting.
 
 ## Container contract
 
-The production image is based on Node.js 22 Alpine and contains only production
+The production image is based on Node.js 24 LTS Alpine and contains only production
 dependencies, server sources, the administration web assets, package metadata,
 and the MIT license. It runs as the unprivileged `prg32` user with these paths:
 

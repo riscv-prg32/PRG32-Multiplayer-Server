@@ -9,3 +9,7 @@ updates:
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }
+    ignore:
+      # Odd-numbered Node.js majors never become LTS; stay on LTS images.
+      - dependency-name: node
+        versions: ['25.x', '27.x']
