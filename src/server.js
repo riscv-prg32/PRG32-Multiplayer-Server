@@ -5,6 +5,7 @@ import { loadConfig } from './config.js';
 import { MultiplayerRelay } from './multiplayer.js';
 import { TelemetryStore } from './telemetry.js';
 import { createAdminHandler } from './admin.js';
+import { startDiscovery } from './discovery.js';
 
 // The request target is client-controlled; an unparsable one is a 400, not a crash.
 const parseRequestUrl = (target) => {
@@ -75,11 +76,14 @@ const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.arg
 if (isMain) {
   const config = loadConfig();
   const app = createServer(config);
-  app.server.listen(config.port, config.host, () =>
-    console.log(`PRG32 multiplayer server listening on ${config.host}:${config.port}`),
-  );
+  let discovery = null;
+  app.server.listen(config.port, config.host, () => {
+    console.log(`PRG32 multiplayer server listening on ${config.host}:${config.port}`);
+    discovery = startDiscovery(config, app.server.address().port);
+  });
   for (const signal of ['SIGINT', 'SIGTERM'])
     process.once(signal, async () => {
+      await discovery?.close();
       await app.close();
       process.exit(0);
     });

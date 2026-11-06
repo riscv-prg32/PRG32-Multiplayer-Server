@@ -39,5 +39,16 @@ export function loadConfig(env = process.env) {
     telemetryRetentionDays: integer(env, 'TELEMETRY_RETENTION_DAYS', 30, 1, 365),
     telemetryMaxEvents: integer(env, 'TELEMETRY_MAX_EVENTS', 100000, 100, 1000000),
     privacyNoticeUrl: env.PRIVACY_NOTICE_URL || '/privacy',
+    // LAN discovery (src/discovery.js). On by default for a classroom server,
+    // off by default in production, where consoles are given the address.
+    discoveryPort: integer(
+      env,
+      'DISCOVERY_PORT',
+      env.NODE_ENV === 'production' ? 0 : 8082,
+      0,
+      65535,
+    ),
+    discoveryIntervalMs: integer(env, 'DISCOVERY_INTERVAL_MS', 2000, 0, 60000),
+    discoveryUrl: env.DISCOVERY_URL || '',
   });
 }
