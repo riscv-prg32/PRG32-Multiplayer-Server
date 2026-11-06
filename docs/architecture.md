@@ -56,6 +56,7 @@ flowchart TB
   ID[src/identity.js<br/>HMAC pseudonyms]
   Store[src/telemetry.js<br/>retention, export, erasure]
   Admin[src/admin.js + public/<br/>dashboard and admin API]
+  Disc[src/discovery.js<br/>UDP LAN discovery]
 
   Config --> HTTP
   Config --> Relay
@@ -67,12 +68,18 @@ flowchart TB
   HTTP --> Admin
   Admin --> Store
   Admin --> Relay
+  HTTP --> Disc
+  Config --> Disc
 ```
 
 The room graph and latest connection state exist only in memory. The telemetry
 event history and pseudonymous device registry persist under `/data`. This is a
 deliberate consistency boundary: gameplay favors low-latency transient state;
 administration requires bounded history, export, and erasure.
+
+`src/discovery.js` is a separate UDP socket (port 8082 by default) that answers
+LAN discovery queries with the WebSocket URL and broadcasts it every 2 seconds;
+it keeps no state. It is described in [the protocol](protocol.md#lan-discovery).
 
 ## Join and relay sequence
 

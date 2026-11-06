@@ -407,6 +407,46 @@ Validation errors ordinarily reject only the message so a client can recover.
 Policy violations such as rate limiting or blocking may close the WebSocket.
 Clients MUST NOT reconnect immediately and indefinitely after a policy error.
 
+## LAN discovery
+
+Discovery is optional and additive: it does not change the WebSocket protocol,
+and a client that knows its server URL never needs it. It lets a console on a
+local network find a server whose address was not compiled in.
+
+A client sends a UDP datagram to the broadcast address `255.255.255.255`, port
+8082 (`DISCOVERY_PORT`):
+
+```json
+{ "type": "discover", "protocol": "prg32-multiplayer-1.0" }
+```
+
+The server answers the sender's address and port with:
+
+```json
+{
+  "type": "server",
+  "protocol": "prg32-multiplayer-1.0",
+  "url": "ws://192.168.1.77:8081"
+}
+```
+
+The URL uses the server's address on the network the query came from, unless
+`DISCOVERY_URL` sets one. The server also broadcasts the same `server` message
+on each of its IPv4 networks every `DISCOVERY_INTERVAL_MS`, so a client that only
+listens on port 8082 finds it too.
+
+Rules:
+
+- Datagrams are UTF-8 JSON objects of at most 512 bytes. Anything else, another
+  `type`, or another `protocol` is ignored without an answer.
+- A client MUST accept only `type` `server`, its own `protocol`, and a printable
+  `ws://` or `wss://` URL that fits its buffer; it then connects and joins as
+  usual. The answer is unauthenticated: on an untrusted network, compile the URL
+  in and do not use discovery.
+- The server logs no discovery datagram and stores nothing about the sender.
+- PRG32 firmware queries every 2 seconds only while a cartridge has asked for a
+  room and the client has been disconnected for at least 3 seconds.
+
 ## Runtime implementation profiles
 
 All runtimes share the wire contract, but their integration boundaries differ.
@@ -558,6 +598,8 @@ and academic reproduction rather than relying only on a visual demonstration.
 | Public device pseudonym         | 22 base64url characters (132 bits) |
 | Maximum firmware peers          |                                  8 |
 | Controller input mask           |                   7 bits (`0…127`) |
+| LAN discovery port (UDP)        |                             `8082` |
+| Discovery datagram maximum      |                          512 bytes |
 
 ## Implementation companion documents
 
