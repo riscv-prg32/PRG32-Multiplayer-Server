@@ -10,7 +10,7 @@
 | `MAX_MESSAGE_BYTES`        |              `1024` | Maximum WebSocket message size                                                              |
 | `MAX_MESSAGES_PER_SECOND`  |                `40` | Per-connection message limit                                                                |
 | `IDLE_TIMEOUT_MS`          |             `15000` | Disconnect silence threshold                                                                |
-| `ALLOWED_ORIGINS`          |               empty | Comma-separated browser origins; empty permits all                                          |
+| `ALLOWED_ORIGINS`          |               empty | Comma-separated browser origins; empty permits all. Clients with no `Origin` are admitted   |
 | `ADMIN_TOKEN`              |   development value | Admin bearer token; 32+ characters required in production                                   |
 | `DATA_DIR`                 |            `./data` | Persistent telemetry/device directory (`/data` in containers)                               |
 | `TELEMETRY_RETENTION_DAYS` |                `30` | Maximum event age, 1–365 days                                                               |

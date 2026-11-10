@@ -52,8 +52,13 @@ export function createServer(config = loadConfig(), logger = console) {
     maxPayload: config.maxMessageBytes,
   });
   server.on('upgrade', (request, socket, head) => {
+    // Browsers always send Origin on a WebSocket upgrade, and a page cannot change
+    // it, so the allowlist stops other websites from using visitors' browsers.
+    // Consoles, PRG32-QT, PRG32-iOS and QEMU are not browsers and send none; any
+    // non-browser client can choose its Origin anyway, so a missing one is let
+    // through and the connection, rate and room limits apply as usual.
     const origin = request.headers.origin;
-    if (config.allowedOrigins.size && (!origin || !config.allowedOrigins.has(origin))) {
+    if (origin && config.allowedOrigins.size && !config.allowedOrigins.has(origin)) {
       socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return;

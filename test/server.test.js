@@ -236,6 +236,31 @@ test('an unparsable request target is rejected without crashing', async (t) => {
   assert.equal(health.headers.get('x-content-type-options'), 'nosniff');
 });
 
+test('the origin allowlist limits browsers but admits consoles, which send no Origin', async (t) => {
+  const { port } = await startServer(t, { ALLOWED_ORIGINS: 'https://allowed.example' });
+  const url = `ws://127.0.0.1:${port}`;
+  // A console: no Origin header at all.
+  const consoleSocket = await open(url);
+  consoleSocket.close();
+  // A browser on the allowed site.
+  const allowed = await new Promise((resolve, reject) => {
+    const socket = new WebSocket(url, { origin: 'https://allowed.example' });
+    socket.once('open', () => resolve(socket));
+    socket.once('error', reject);
+  });
+  allowed.close();
+  // A browser on another site is refused before the upgrade.
+  assert.match(
+    await rawRequest(
+      port,
+      'GET / HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n' +
+        'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n' +
+        'Origin: https://other.example\r\n\r\n',
+    ),
+    /^HTTP\/1\.1 403/,
+  );
+});
+
 test('admin event limit is clamped to a sane window', async (t) => {
   const adminToken = '01234567890123456789012345678901';
   const { app, port } = await startServer(t, { ADMIN_TOKEN: adminToken });
