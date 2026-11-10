@@ -57,6 +57,7 @@ flowchart TB
   Store[src/telemetry.js<br/>retention, export, erasure]
   Admin[src/admin.js + public/<br/>dashboard and admin API]
   Disc[src/discovery.js<br/>UDP LAN discovery]
+  Mdns[src/mdns.js<br/>mDNS advertising]
 
   Config --> HTTP
   Config --> Relay
@@ -70,6 +71,8 @@ flowchart TB
   Admin --> Relay
   HTTP --> Disc
   Config --> Disc
+  HTTP --> Mdns
+  Config --> Mdns
 ```
 
 The room graph and latest connection state exist only in memory. The telemetry
@@ -80,6 +83,9 @@ administration requires bounded history, export, and erasure.
 `src/discovery.js` is a separate UDP socket (port 8082 by default) that answers
 LAN discovery queries with the WebSocket URL and broadcasts it every 2 seconds;
 it keeps no state. It is described in [the protocol](protocol.md#lan-discovery).
+`src/mdns.js` advertises the same server as the mDNS / DNS-SD service
+`_prg32mp._tcp` with `bonjour-service`, also without state; see
+[mDNS advertising](protocol.md#mdns-advertising).
 
 ## Join and relay sequence
 

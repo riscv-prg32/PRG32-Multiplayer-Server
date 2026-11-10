@@ -1,3 +1,11 @@
+const boolean = (env, name, fallback) => {
+  const raw = (env[name] ?? '').trim().toLowerCase();
+  if (raw === '') return fallback;
+  if (['1', 'true', 'on', 'yes'].includes(raw)) return true;
+  if (['0', 'false', 'off', 'no'].includes(raw)) return false;
+  throw new Error(`${name} must be on or off`);
+};
+
 const integer = (env, name, fallback, minimum, maximum) => {
   const raw = env[name];
   if (raw === undefined || raw === '') return fallback;
@@ -50,5 +58,8 @@ export function loadConfig(env = process.env) {
     ),
     discoveryIntervalMs: integer(env, 'DISCOVERY_INTERVAL_MS', 2000, 0, 60000),
     discoveryUrl: env.DISCOVERY_URL || '',
+    // mDNS / DNS-SD advertising (src/mdns.js), with the same defaults.
+    mdns: boolean(env, 'MDNS', env.NODE_ENV !== 'production'),
+    mdnsName: (env.MDNS_NAME || 'PRG32 Multiplayer').slice(0, 63),
   });
 }

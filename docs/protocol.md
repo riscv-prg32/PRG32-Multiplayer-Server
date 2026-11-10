@@ -447,6 +447,36 @@ Rules:
 - PRG32 firmware queries every 2 seconds only while a cartridge has asked for a
   room and the client has been disconnected for at least 3 seconds.
 
+## mDNS advertising
+
+The server also advertises itself with multicast DNS service discovery
+(RFC 6762, RFC 6763). Like LAN discovery it is optional and additive. The
+records are:
+
+| Record | Name                                    | Data                                             |
+| ------ | --------------------------------------- | ------------------------------------------------ |
+| PTR    | `_prg32mp._tcp.local`                   | `PRG32 Multiplayer._prg32mp._tcp.local`          |
+| SRV    | `PRG32 Multiplayer._prg32mp._tcp.local` | `<host>.local`, port 8081 (`PORT`)               |
+| TXT    | `PRG32 Multiplayer._prg32mp._tcp.local` | optional `scheme=ws\|wss` and `path=/…`          |
+| A      | `<host>.local`                          | each of the server's non-loopback IPv4 addresses |
+
+A client builds the URL `<scheme>://<address>:<port><path>` from the first IPv4
+address, the SRV port, and the TXT keys. `scheme` defaults to `ws` and `path` to
+`/`, so the server sends them only when `DISCOVERY_URL` needs them; that URL
+also sets the SRV port (443 for `wss://` without a port). `MDNS_NAME` sets the
+instance name, and `MDNS=off` turns advertising off.
+
+Rules:
+
+- A client MUST accept only `scheme` `ws` or `wss` and a printable `path` that
+  starts with `/` and fits its buffer, then connects and joins as usual.
+- The answer is unauthenticated, as for LAN discovery: on an untrusted network,
+  compile the URL in.
+- The server answers mDNS queries only; it logs none and stores nothing about
+  the asker.
+- PRG32 firmware on ESP32-C6 queries every 6 seconds, under the same conditions
+  as LAN discovery, and takes the first answer from either.
+
 ## Runtime implementation profiles
 
 All runtimes share the wire contract, but their integration boundaries differ.
@@ -600,6 +630,7 @@ and academic reproduction rather than relying only on a visual demonstration.
 | Controller input mask           |                   7 bits (`0…127`) |
 | LAN discovery port (UDP)        |                             `8082` |
 | Discovery datagram maximum      |                          512 bytes |
+| mDNS service type               |                    `_prg32mp._tcp` |
 
 ## Implementation companion documents
 

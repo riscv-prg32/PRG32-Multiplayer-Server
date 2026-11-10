@@ -6,6 +6,7 @@ import { MultiplayerRelay } from './multiplayer.js';
 import { TelemetryStore } from './telemetry.js';
 import { createAdminHandler } from './admin.js';
 import { startDiscovery } from './discovery.js';
+import { startMdns } from './mdns.js';
 
 // The request target is client-controlled; an unparsable one is a 400, not a crash.
 const parseRequestUrl = (target) => {
@@ -77,12 +78,15 @@ if (isMain) {
   const config = loadConfig();
   const app = createServer(config);
   let discovery = null;
+  let mdns = null;
   app.server.listen(config.port, config.host, () => {
     console.log(`PRG32 multiplayer server listening on ${config.host}:${config.port}`);
     discovery = startDiscovery(config, app.server.address().port);
+    mdns = startMdns(config, app.server.address().port);
   });
   for (const signal of ['SIGINT', 'SIGTERM'])
     process.once(signal, async () => {
+      await mdns?.close();
       await discovery?.close();
       await app.close();
       process.exit(0);
