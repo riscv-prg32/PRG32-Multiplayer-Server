@@ -50,7 +50,7 @@ The server also advertises itself with mDNS / DNS-SD as the service
 `_prg32mp._tcp` (see [mDNS advertising](protocol.md#mdns-advertising)). PRG32
 firmware on ESP32-C6 asks for that service every 6 seconds and tries it before
 UDP discovery. The SRV port is `PORT`; when `DISCOVERY_URL` is set, its port
-and, if needed, the TXT keys `scheme=wss` and `path` come from that URL, but the
+and the TXT keys `scheme=wss` and `path` come from that URL, but the
 address is still this host's own. `MDNS` follows the same defaults as discovery
 (on, off when `NODE_ENV=production`). It needs UDP port 5353 (multicast
 `224.0.0.251`) open in the host firewall and, like discovery, stays on one local

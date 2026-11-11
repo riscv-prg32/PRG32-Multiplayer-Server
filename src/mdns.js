@@ -7,11 +7,13 @@ import { Bonjour } from 'bonjour-service';
 //
 //   PTR  _prg32mp._tcp.local            -> PRG32 Multiplayer._prg32mp._tcp.local
 //   SRV  PRG32 Multiplayer._prg32mp...  -> <host>.local, port 8081
-//   TXT  PRG32 Multiplayer._prg32mp...  -> scheme=wss path=/mp (only when needed)
+//   TXT  PRG32 Multiplayer._prg32mp...  -> scheme=ws, plus path=/mp when needed
 //   A    <host>.local                   -> this host's IPv4 addresses
 //
-// The console builds `<scheme>://<A address>:<SRV port><path>`; `scheme`
-// defaults to `ws` and `path` to `/`, so a plain server sends an empty TXT.
+// The console builds `<scheme>://<A address>:<SRV port><path>`; `path`
+// defaults to `/`. The TXT record always carries `scheme`, never zero bytes:
+// ESP-IDF mdns (1.14.1) drops the rest of a packet at a zero-length record,
+// so an empty TXT before the A record hid the server's address from consoles.
 
 export const MDNS_SERVICE_TYPE = 'prg32mp';
 
@@ -28,9 +30,8 @@ export function mdnsRecord(config, port) {
     url = null;
   }
   const scheme = url?.protocol.replace(/:$/, '');
-  if (scheme !== 'ws' && scheme !== 'wss') return { port, txt: {} };
-  const txt = {};
-  if (scheme !== 'ws') txt.scheme = scheme;
+  if (scheme !== 'ws' && scheme !== 'wss') return { port, txt: { scheme: 'ws' } };
+  const txt = { scheme };
   const path = url.pathname + url.search;
   if (path && path !== '/') txt.path = path;
   const urlPort = url.port ? Number(url.port) : scheme === 'wss' ? 443 : 80;
