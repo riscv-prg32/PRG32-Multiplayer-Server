@@ -466,7 +466,10 @@ address, the SRV port, and the TXT keys. `scheme` defaults to `ws` and `path` to
 `DISCOVERY_URL` says so) and sends `path` only when `DISCOVERY_URL` has one;
 that URL also sets the SRV port (443 for `wss://` without a port). The A records
 for the SRV target are in the additional section of every answer. `MDNS_NAME` sets the
-instance name, and `MDNS=off` turns advertising off.
+instance name, and `MDNS=off` turns advertising off. Before it advertises, the
+server probes for its instance name (RFC 6762 §8.1); if another host answers
+for it, it takes the next free one, `PRG32 Multiplayer (2)`, `(3)`, and so on,
+as macOS does.
 
 Rules:
 

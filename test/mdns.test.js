@@ -4,7 +4,13 @@ import { Bonjour } from 'bonjour-service';
 import dnsPacket from 'dns-packet';
 import multicastDns from 'multicast-dns';
 import { loadConfig } from '../src/config.js';
-import { MDNS_SERVICE_TYPE, mdnsHost, mdnsRecord, startMdns } from '../src/mdns.js';
+import {
+  MDNS_SERVICE_TYPE,
+  mdnsHost,
+  mdnsRecord,
+  nextMdnsName,
+  startMdns,
+} from '../src/mdns.js';
 
 const production = {
   NODE_ENV: 'production',
@@ -47,6 +53,9 @@ test('names the service and its host', () => {
   assert.equal(loadConfig({ MDNS_NAME: 'Lab 3' }).mdnsName, 'Lab 3');
   assert.equal(mdnsHost('Mac.homenet.example.it'), 'Mac.local');
   assert.equal(mdnsHost('lab_pc'), 'lab-pc.local');
+  assert.equal(nextMdnsName('PRG32 Multiplayer'), 'PRG32 Multiplayer (2)');
+  assert.equal(nextMdnsName('PRG32 Multiplayer (2)'), 'PRG32 Multiplayer (3)');
+  assert.equal(nextMdnsName('x'.repeat(63)).length, 63);
 });
 
 test('takes the SRV port and TXT keys from the public URL', () => {
@@ -132,5 +141,31 @@ test(
     assert.ok(a.length > 0, 'an A record for the SRV target');
     const txt = records.find((r) => r.type === 'TXT');
     assert.deepEqual(txt.data.map(String), ['scheme=ws']);
+  },
+);
+
+test(
+  'takes the next free name when another server has it',
+  { timeout: 15_000 },
+  async (t) => {
+    const mdns = { port: 47_000 + ((process.pid + 900) % 1000), loopback: true };
+    const config = loadConfig({ MDNS_NAME: 'PRG32 Twin' });
+    const first = startMdns(config, 8081, {}, { mdns, host: 'twin-a.local' });
+    t.after(() => first.close());
+    assert.equal((await first.ready).name, 'PRG32 Twin');
+    const second = startMdns(config, 8082, {}, { mdns, host: 'twin-b.local' });
+    t.after(() => second.close());
+    assert.equal((await second.ready).name, 'PRG32 Twin (2)');
+    // The first server is still advertised: nothing said goodbye for its name.
+    const client = new Bonjour(mdns, () => {});
+    t.after(() => client.destroy());
+    const names = new Set();
+    await new Promise((resolve) =>
+      client.find({ type: MDNS_SERVICE_TYPE, protocol: 'tcp' }, (service) => {
+        names.add(`${service.name} ${service.port}`);
+        if (names.size === 2) resolve();
+      }),
+    );
+    assert.deepEqual([...names].sort(), ['PRG32 Twin (2) 8082', 'PRG32 Twin 8081']);
   },
 );
