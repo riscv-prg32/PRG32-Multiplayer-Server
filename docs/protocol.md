@@ -457,19 +457,27 @@ records are:
 | ------ | --------------------------------------- | ------------------------------------------------ |
 | PTR    | `_prg32mp._tcp.local`                   | `PRG32 Multiplayer._prg32mp._tcp.local`          |
 | SRV    | `PRG32 Multiplayer._prg32mp._tcp.local` | `<host>.local`, port 8081 (`PORT`)               |
-| TXT    | `PRG32 Multiplayer._prg32mp._tcp.local` | optional `scheme=ws\|wss` and `path=/…`          |
+| TXT    | `PRG32 Multiplayer._prg32mp._tcp.local` | `scheme=ws\|wss`, and `path=/…` when not `/`     |
 | A      | `<host>.local`                          | each of the server's non-loopback IPv4 addresses |
 
 A client builds the URL `<scheme>://<address>:<port><path>` from the first IPv4
 address, the SRV port, and the TXT keys. `scheme` defaults to `ws` and `path` to
-`/`, so the server sends them only when `DISCOVERY_URL` needs them; that URL
-also sets the SRV port (443 for `wss://` without a port). `MDNS_NAME` sets the
-instance name, and `MDNS=off` turns advertising off.
+`/` when absent. The server always sends `scheme` (`wss` only when
+`DISCOVERY_URL` says so) and sends `path` only when `DISCOVERY_URL` has one;
+that URL also sets the SRV port (443 for `wss://` without a port). The A records
+for the SRV target are in the additional section of every answer. `MDNS_NAME` sets the
+instance name, and `MDNS=off` turns advertising off. Before it advertises, the
+server probes for its instance name (RFC 6762 §8.1); if another host answers
+for it, it takes the next free one, `PRG32 Multiplayer (2)`, `(3)`, and so on,
+as macOS does.
 
 Rules:
 
 - A client MUST accept only `scheme` `ws` or `wss` and a printable `path` that
   starts with `/` and fits its buffer, then connects and joins as usual.
+- No record in an answer may have empty data. An empty TXT record (RDLENGTH 0,
+  which RFC 6763 §6.1 forbids) makes ESP-IDF mdns 1.14.1 drop the rest of the
+  packet, including the A records, so the server never sends one.
 - The answer is unauthenticated, as for LAN discovery: on an untrusted network,
   compile the URL in.
 - The server answers mDNS queries only; it logs none and stores nothing about
