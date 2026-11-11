@@ -161,6 +161,39 @@ Clients use `wss://multiplayer.example.edu/`. The dashboard uses
 application service and preserve WebSocket upgrade headers, long-lived
 connections, response streaming, and the original `Origin` header.
 
+### Behind Apache or another proxy
+
+Consoles connect with a WebSocket upgrade: one HTTP request that asks to turn
+the connection into a long-lived two-way channel. A reverse proxy forwards
+ordinary page requests by default, but forwards an upgrade only when configured
+to. When it is not, it answers the upgrade itself, usually with `200` and the
+status page, so the status page works in a browser while no console can join a
+room.
+
+[deploy/apache/prg32-multiplayer.conf](../deploy/apache/prg32-multiplayer.conf)
+is a complete Apache virtual host. Its key line is
+
+```apache
+ProxyPass / http://127.0.0.1:8081/ upgrade=websocket timeout=60
+```
+
+which needs Apache 2.4.47 or later and the modules `proxy`, `proxy_http`, and
+`proxy_wstunnel`; the file also shows the `mod_rewrite` form for older Apache.
+Other proxies need the same: nginx `proxy_http_version 1.1` with the `Upgrade`
+and `Connection` headers passed on, and Caddy forwards upgrades by default.
+
+Check a deployment the way a console connects, without joining a room:
+
+```bash
+npm run check:connection -- wss://multiplayer.example.edu
+```
+
+| Result                           | Meaning                                                                                                      |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `OK ... 101 Switching Protocols` | The proxy and the server accept consoles                                                                     |
+| `FAIL ... 200 OK`                | The proxy answered the upgrade itself: configure WebSocket proxying as above                                 |
+| `FAIL ... 403 Forbidden`         | The server refused a request without `Origin`: this server version admits them, so update the running server |
+
 ## Persistence and data lifecycle
 
 The application writes `telemetry.jsonl` and `devices.json` beneath `/data`.

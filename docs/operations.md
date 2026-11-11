@@ -2,6 +2,14 @@
 
 Terminate TLS, restrict browser origins, keep `DEVICE_ID_SECRET` in a secret
 manager, and rotate it deliberately (rotation changes every public device ID).
+
+`ALLOWED_ORIGINS` protects visitors' browsers, not the relay. A browser always
+sends the page's `Origin` with a WebSocket upgrade and a page cannot change it,
+so the allowlist stops other websites from opening rooms through their visitors.
+Consoles, PRG32-QT, PRG32-iOS, and QEMU are not browsers and send no `Origin`;
+they are admitted. Any non-browser client can send whatever `Origin` it likes,
+so the check is not authentication: the connection, room, size, and rate limits
+and device blocking below are what bound misuse.
 The relay validates every field, limits frames/rooms/connections/message rate,
 does not retain state, and times out silent clients.
 
